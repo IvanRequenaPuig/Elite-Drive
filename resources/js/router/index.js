@@ -1,4 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { useAuth } from "../composables/useAuth";
+import { useToast } from "../composables/useToast";
+
 import Index from "../pages/Index.vue";
 import Admin from "../pages/Admin.vue";
 import Cars from "../pages/Cars.vue";
@@ -8,7 +11,9 @@ import Legal from "../pages/Legal.vue";
 import Profile from "../pages/Profile.vue";
 import Car from "../pages/Car.vue";
 import Checkout from "../pages/Checkout.vue";
+import ResetPassword from "../pages/ResetPassword.vue";
 
+// All view routes
 const routes = [
     { path: "/", component: Index },
     { path: "/admin", component: Admin },
@@ -19,42 +24,62 @@ const routes = [
     { path: "/profile", component: Profile },
     { path: "/cars/:id", component: Car, props: true },
     { path: "/checkout", component: Checkout },
+    { path: "/reset-password/:token", name: "ResetPassword", component: ResetPassword },
+    // Catch all route for 404 Not Found
+    { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../pages/NotFound.vue') },
 ];
 
+// Router set
 const router = createRouter({
     history: createWebHistory(),
     routes,
+    // How scroll behavies
+    scrollBehavior(to, from, savePosition) {
+        return { top: 0, behavior: "smooth" };
+    },
 });
 
 export default router;
 
+// Toast object
+const toast = useToast();
+
 // Navigation guards
 
-router.beforeEach((to, from, next) => {
-    const userRole = localStorage.getItem("user_role");
+router.beforeEach(async (to, from, next) => {
+    const { fetchUser, isAdmin, isCustomer, isInitialized } = useAuth();
+
+    // Wait until verify user data
+    if (!isInitialized.value) {
+        await fetchUser();
+    }
 
     // Route /admin
     if (to.path === "/admin") {
-        if (userRole === "admin") {
+        if (isAdmin.value) {
             next();
         } else {
-            alert("Access denied: Administrator role required");
+            toast.error("You must be an Admin to access this page", "Security");
             next("/");
         }
     }
 
     // Route /profile
     else if (to.path === "/profile") {
-        if (userRole === "customer") {
+        if (isCustomer.value) {
             next();
         } else {
-            alert("Access denied: User authentication required");
+            toast.error(
+                "You must be an Authorized Customer to access this page",
+                "Security",
+            );
             next("/");
         }
     }
 
-    // Other routes
+    // Other routes, proceed
     else {
         next();
     }
+    
 });

@@ -2,12 +2,48 @@
 
 /* Hero ================================================================================================ */
 
-.hero-section {
-    background: url('../img/index/hero.jpg');
-    background-size: cover;
-    background-position: center;
-    height: 100vh;
-    min-height: 80vh
+.hero-video {
+    height: 80vh;
+    background: black;
+}
+
+.video-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none; /* Prevents the user from pausing the video when clicking */
+}
+
+.video-background iframe {
+    width: 100vw;
+    height: 56.25vw;
+    min-height: 100vh;
+    min-width: 177.77vh;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.z-index-1 {
+    z-index: 1;
+}
+
+/* 3D Model ============================================================================================ */
+
+.v-3d-model {
+    height: 500px; 
+    display: block; 
+    border: none;
+}
+
+@media (max-width: 768px) {
+    .v-3d-model {
+        height: 300px;
+    }
 }
 
 /* Services ============================================================================================ */
@@ -29,7 +65,8 @@
 
 /* Carousel ============================================================================================ */
 
-/*.internal-frame,*/ .carousel-item {
+/*.internal-frame,*/
+.carousel-item {
     border: 1px solid var(--secondary-color);
 
     & img {
@@ -41,17 +78,76 @@
 
 /* Road Carousel ======================================================================================= */
 
-.vertical-card {
-    height: 550px; /* Ajusta a la altura que quieras mostrar */
+.road-carousel-container {
+    width: 250px;
+    height: 540px;
     overflow: hidden;
-    background-color: #000;
-    display: flex;
-    justify-content: center;
+    /* Hide images out of area */
+    position: relative;
     border: 1px solid var(--secondary-color);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
 }
 
-.vertical-card img {
+.road-carousel-inner {
+    position: relative;
+    width: 100%;
     height: 100%;
-    width: auto;
+}
+
+.road-image {
+    width: 100%;
+    height: 100%;
     object-fit: cover;
+    position: absolute;
+    left: 0;
+    top: 0;
+    /* Position down by default */
+    transform: translateY(100%);
+    z-index: 0;
+    transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Place at the top - Hidden action */
+.road-image.prepare-above {
+    transform: translateY(-100%);
+    opacity: 0;
+    transition: none !important;
+    z-index: 0;
+}
+
+/* Active status: image scrolls down */
+.road-image.active-road-image {
+    transform: translateY(0%);
+    z-index: 2;
+    transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Exit status: image scrolls down out of visible area */
+.road-image:not(.active-road-image):not(.prepare-above) {
+    transform: translateY(100%);
+    z-index: 1;
+}
+
+/* Adjust images depending on screen size */
+@media (max-width: 768px) {
+    
+    .hero-section {
+        height: 50vh;
+        min-height: 50vh;
+    }
+
+    .carousel-item img {
+        height: 300px; 
+    }
+}
+
+@media (max-width: 576px) {
+    .hero-section {
+        height: 40vh;
+        min-height: 40vh;
+    }
+    
+    .carousel-item img {
+        height: 250px; 
+    }
 }

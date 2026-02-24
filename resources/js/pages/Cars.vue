@@ -1,10 +1,14 @@
+<!-- Sergio Libros -->
+
 <script setup>
 import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 
+// Reference array of cars
 const cars = ref([]);
 const loading = ref(true);
 
+// Initial filters status
 const filters = ref({
     query: "",
     brand: "",
@@ -19,6 +23,7 @@ const filters = ref({
 
 onMounted(async () => {
     try {
+        // Get cars
         const res = await axios.get("/api/cars");
         cars.value = res.data;
     } catch (error) {
@@ -28,20 +33,20 @@ onMounted(async () => {
     }
 });
 
+// Get all different items for select filter
 function getAll(spec) {
     return Array.from(new Set(cars.value.map((c) => c[spec]).filter(Boolean))).sort();
 };
 
-function addToCart(car) {
-    alert(`Added ${car.brand} ${car.model} to cart`);
-}
-
+// Get all different data
 const brands = computed(() => getAll("brand"));
 const doors = computed(() => getAll("doors"));
 const fuels = computed(() => getAll("fuel_type"));
 const statuses = computed(() => getAll("status"));
 
+// Get cars that correspond with filtered data
 const filteredCars = computed(() => {
+    // Filter by query, brand, fuel, doors, status, price and year
     return cars.value.filter((c) => {
         if (filters.value.query && !(c.brand + " " + c.model).toLowerCase().includes(filters.value.query.toLowerCase())) return false;
         if (filters.value.brand && c.brand !== filters.value.brand) return false;
@@ -52,10 +57,12 @@ const filteredCars = computed(() => {
         if (filters.value.maxPrice && Number(c.hourly_price) > Number(filters.value.maxPrice)) return false;
         if (filters.value.minYear && Number(c.manufacturing_year) < Number(filters.value.minYear)) return false;
         if (filters.value.maxYear && Number(c.manufacturing_year) > Number(filters.value.maxYear)) return false;
+        // If all filters passed, return true
         return true;
     });
 });
 
+// Resetted filter status
 const resetFilters = () => {
     filters.value = {
         query: "",
@@ -70,6 +77,7 @@ const resetFilters = () => {
     };
 };
 
+// Function to get a car thumbnail
 function getThumbnail(car) {
     return `/images/cars/thumbnails/${car.id}-thm.webp`;
 };
@@ -77,91 +85,119 @@ function getThumbnail(car) {
 
 <template>
     <div class="container py-5">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h3 mb-0">Vehicle Fleet</h1>
-            <button class="btn btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse"
+        <div class="dashboard-title mb-4 p-3 shadow-sm d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Vehicle Fleet</h4>
+            <button class="btn bg-primary-cta d-md-none" type="button" data-bs-toggle="collapse"
                 data-bs-target="#filtersCollapse">
                 <i class="bi bi-funnel me-1"></i> Filters
             </button>
         </div>
 
+        <!-- DIVIDER ============================================================== -->
+
+        <section class="mt-3 mb-4">
+            <div class="container">
+                <div class="d-flex justify-content-center">
+                    <img :src="'/images/decorations/divider.png'" alt="Divider" class="w-50">
+                </div>
+            </div>
+        </section>
+
         <div class="row">
             <!-- SIDEBAR FILTERS -->
             <aside class="col-12 col-md-3 mb-4">
+                <!-- If small screen, collapsed -->
                 <div class="collapse d-md-block" id="filtersCollapse">
-                    <div class="card shadow-sm">
-                        <div class="card-body">
-                            <h5 class="card-title">Filters</h5>
+                    <div class="panel-header p-3 border-bottom-0">
+                        <h5 class="panel-title">
+                            <i class="bi bi-sliders me-2"></i> Filters
+                        </h5>
+                    </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">Search</label>
-                                <input v-model="filters.query" type="search" class="form-control"
-                                    placeholder="Brand or model" />
-                            </div>
+                    <div class="panel-content p-3">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-info-circle me-2"></i> Status</label>
+                            <select v-model="filters.status" class="form-select">
+                                <option value="">Any</option>
+                                <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
+                            </select>
+                        </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">Brand</label>
-                                <select v-model="filters.brand" class="form-select">
-                                    <option value="">Any</option>
-                                    <option v-for="b in brands" :key="b" :value="b">{{ b }}</option>
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-search me-2"></i> Search
+                            </label>
+                            <input v-model="filters.query" type="search" class="form-control"
+                                placeholder="Brand or model" />
+                        </div>
 
-                            <div class="row g-2 mb-3">
-                                <div class="col-6">
-                                    <label class="form-label">Min price</label>
-                                    <input v-model.number="filters.minPrice" type="number" class="form-control" min="0"
-                                        placeholder="€" />
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Max price</label>
-                                    <input v-model.number="filters.maxPrice" type="number" class="form-control" min="0"
-                                        placeholder="€" />
-                                </div>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-car-front me-2"></i> Brand
+                            </label>
+                            <select v-model="filters.brand" class="form-select">
+                                <option value="">Any</option>
+                                <option v-for="b in brands" :key="b" :value="b">{{ b }}</option>
+                            </select>
+                        </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">Doors</label>
-                                <select v-model="filters.doors" class="form-select">
-                                    <option value="">Any</option>
-                                    <option v-for="d in doors" :key="d" :value="d">{{ d }}</option>
-                                </select>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label">
+                                    <i class="bi bi-cash me-2"></i> Min price</label>
+                                <input v-model.number="filters.minPrice" type="number" class="form-control" min="0"
+                                    placeholder="€" />
                             </div>
+                            <div class="col-6">
+                                <label class="form-label">
+                                    <i class="bi bi-cash me-2"></i> Max price</label>
+                                <input v-model.number="filters.maxPrice" type="number" class="form-control" min="0"
+                                    placeholder="€" />
+                            </div>
+                        </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">Fuel</label>
-                                <select v-model="filters.fuel" class="form-select">
-                                    <option value="">Any</option>
-                                    <option v-for="f in fuels" :key="f" :value="f">{{ f }}</option>
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-door-closed me-2"></i> Doors</label>
+                            <select v-model="filters.doors" class="form-select">
+                                <option value="">Any</option>
+                                <option v-for="d in doors" :key="d" :value="d">{{ d }}</option>
+                            </select>
+                        </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">Status</label>
-                                <select v-model="filters.status" class="form-select">
-                                    <option value="">Any</option>
-                                    <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
-                                </select>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="bi bi-fuel-pump me-2"></i> Fuel</label>
+                            <select v-model="filters.fuel" class="form-select">
+                                <option value="">Any</option>
+                                <option v-for="f in fuels" :key="f" :value="f">{{ f }}</option>
+                            </select>
+                        </div>
 
-                            <div class="row g-2 mb-3">
-                                <div class="col-6">
-                                    <label class="form-label">Min year</label>
-                                    <input v-model.number="filters.minYear" type="number" class="form-control"
-                                        placeholder="YYYY" />
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label">Max year</label>
-                                    <input v-model.number="filters.maxYear" type="number" class="form-control"
-                                        placeholder="YYYY" />
-                                </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label">
+                                    <i class="bi bi-calendar me-2"></i> Min year</label>
+                                <input v-model.number="filters.minYear" type="number" class="form-control"
+                                    placeholder="YYYY" />
                             </div>
+                            <div class="col-6">
+                                <label class="form-label">
+                                    <i class="bi bi-calendar me-2"></i> Max year</label>
+                                <input v-model.number="filters.maxYear" type="number" class="form-control"
+                                    placeholder="YYYY" />
+                            </div>
+                        </div>
 
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-secondary" @click="resetFilters">Reset</button>
-                                <button class="btn btn-sm btn-outline-secondary d-md-none" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#filtersCollapse">Close</button>
-                            </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn bg-primary-cta" @click="resetFilters">
+                                <i class="bi bi-arrow-counterclockwise me-2"></i> Reset
+                            </button>
+                            <button class="btn bg-primary-cta d-md-none" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#filtersCollapse">
+                                <i class="bi bi-x-circle me-2"></i> Cancel
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -170,7 +206,7 @@ function getThumbnail(car) {
             <!-- VEHICLE GRID -->
             <main class="col-12 col-md-9">
                 <div v-if="loading" class="container text-center py-5">
-                    <div class="spinner-border text-dark" role="status"></div>
+                    <div class="spinner-border text-light" role="status"></div>
                     <p class="mt-3 fs-5">Loading vehicles...</p>
                 </div>
 
@@ -184,16 +220,20 @@ function getThumbnail(car) {
 
                             <div class="card-body d-flex flex-column">
                                 <h6 class="card-title mb-1">{{ car.brand }} {{ car.model }}</h6>
-                                <p class="mb-3 fw-bold">€{{ car.hourly_price }} <small class="text-muted">/ hour</small>
+                                <p class="mb-3 fw-bold">
+                                    €{{ car.hourly_price }}
+                                    <span class="price-label">/ hour</span>
                                 </p>
                                 <div class="mt-auto d-grid">
-                                    <RouterLink :to="`/cars/${car.id}`" class="btn btn-outline-dark btn-sm">Details
+                                    <RouterLink :to="`/cars/${car.id}`" class="btn bg-primary-cta btn-sm">
+                                        <i class="bi bi-info-circle me-2"></i> Details
                                     </RouterLink>
                                 </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Message if no possible vehicles -->
                     <div v-if="!filteredCars.length" class="col-12">
                         <p class="text-center mb-0">No vehicles found matching the filters.</p>
                     </div>
@@ -204,6 +244,9 @@ function getThumbnail(car) {
 </template>
 
 <style scoped>
+@import "../../css/admin_style.css";
+@import "../../css/cars_style.css";
+
 .vehicle-card {
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     overflow: hidden;

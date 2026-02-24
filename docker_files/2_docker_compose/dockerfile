@@ -1,0 +1,55 @@
+# --- STAGE 1: Frontend compilation ---
+FROM node:20-alpine AS build-stage
+WORKDIR /app
+
+# Install git to clone the private repository
+RUN apk add --no-cache git
+
+# Define the GitHub token as a build argument
+ARG GITHUB_TOKEN
+# Clone the private repository using the token for authentication
+RUN git clone https://${GITHUB_TOKEN}@github.com/SergioLibrosEscuder/elite-drive.git .
+
+# Install dependencies and build the frontend assets
+RUN npm install
+RUN npm run build
+
+# --- STAGE 2: Web Server (PHP 8.2 + Apache) ---
+FROM php:8.2-apache
+
+# Install necessary packages and PHP extensions
+RUN apt-get update && apt-get install -y \
+    libpng-dev libjpeg-dev libfreetype6-dev zip libzip-dev \
+    unzip git ssl-cert libpq-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install gd pdo pdo_mysql pdo_pgsql zip \
+    && a2enmod rewrite ssl
+
+# Enable the default SSL site
+RUN a2ensite default-ssl
+
+# Copy custom Apache and PHP configurations
+COPY ./docker_files/2_docker_compose/docker-config/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY ./docker_files/2_docker_compose/docker-config/php.ini /usr/local/etc/php/conf.d/app-php.ini
+
+# Copy the built frontend assets and Laravel application from the build stage to the Apache document root
+COPY --from=build-stage /app /var/www/html
+COPY .env /var/www/html/.env
+
+# Install Composer and Laravel dependencies
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER=1
+RUN composer install --no-dev --optimize-autoloader
+
+# Generate the application key
+RUN php artisan key:generate
+
+# Set permissions for Laravel storage and cache directories
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chmod -R 775 /var/www/html/storage
+
+# Expose HTTP and HTTPS ports
+EXPOSE 80 443
+
+# Start Apache in the foreground
+CMD ["apache2-foreground"]

@@ -1,26 +1,33 @@
 <?php
+// <!-- Guillermo Soto -->º
 
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Password as PasswordFacade;
+use Illuminate\Validation\Rules\Password as PasswordRules;
+use Illuminate\Auth\Events\Registered;
 use App\Models\User;
 
 class AuthController extends Controller
 {
+    // Login method 
     public function login(Request $request)
     {
+        // Validate data recieved
         $credentials = $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
+        // Try to login with recieved data
         if (Auth::attempt($credentials)) {
-            $request->session()->regenerate(); // Seguridad para web.php
+            // Regenerate session to enhance security
+            $request->session()->regenerate();
             $user = Auth::user();
-            
+
             return response()->json([
                 'status' => 'success',
                 'user' => [
@@ -29,69 +36,158 @@ class AuthController extends Controller
                 ]
             ]);
         }
-
+        // If login failed
         return response()->json(['message' => 'Credenciales incorrectas'], 401);
     }
 
+    // Logout method
+    public function logout(Request $request)
+    {
+        // Logout user from the session
+        Auth::logout();
+        // Invalidate actual session
+        $request->session()->invalidate();
+        //Regenerate CSRF token
+        $request->session()->regenerateToken();
+
+        return response()->json(['message' => 'Logged out correctly']);
+    }
+
+    // Register method
     public function register(Request $request)
     {
+        // Validate recieved data
         $data = $request->validate([
             'dni' => 'required|string|unique:users',
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'second_last_name' => 'nullable|string|max:100',
-            'birth_date' => 'required|date|before:-18 years', // Validación extra en Laravel
+            // Age validation
+            'birth_date' => 'required|date|before:-18 years',
             'email' => 'required|email|unique:users',
-            'password' => 'required|min:8|confirmed', // 'confirmed' busca password_confirmation
+            // Password validation with confirmed parameter
+            'password' => 'required|min:8|confirmed',
             'phone' => 'required|string',
             'address' => 'required|string',
         ]);
-
+        // Create user with the validated data
         $user = User::create([
             'dni' => $data['dni'],
             'first_name' => $data['first_name'],
             'last_name' => $data['last_name'],
+            'second_last_name' => $data['second_last_name'],
             'birth_date' => $data['birth_date'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'phone' => $data['phone'],
             'address' => $data['address'],
-            'role' => 'customer', // Siempre customer
+            // Make sure the role is always customer
+            'role' => 'customer',
         ]);
+
+        // Send confirmation mail
+        event(new Registered($user));
 
         return response()->json(['message' => 'User registered successfully'], 201);
     }
 
+    // Method to verify user
+    public function verify(Request $request)
+    {
+
+        $user = User::findOrFail($request->route('id'));
+
+        // Hash security verification
+        if (!hash_equals((string) $request->route('hash'), sha1($user->getEmailForVerification()))) {
+            return response()->json(['message' => 'Invalid verification link'], 403);
+        }
+        // If the user is not verified, mark as verified and trigger the event
+        if (!$user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+            event(new \Illuminate\Auth\Events\Verified($user));
+        }
+        // Redirect to the frontend with a query parameter to indicate successful verification
+        return redirect('http://localhost:8000/?verified=1');
+    }
+
+    // Method to update user info
     public function updateProfile(Request $request)
     {
-        $user = Auth::user(); // Obtenemos al usuario autenticado por la sesión
-        
+        // Get the user from the session
+        $user = Auth::user();
+
+        // Validate the data to update
         $data = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name'  => 'required|string|max:255',
+            'second_last_name' => 'nullable|string|max:255',
             'email'      => 'required|email|unique:users,email,' . $user->id,
             'phone'      => 'nullable|string',
             'address'    => 'nullable|string',
         ]);
-
+        // Update the user with the validated data
         $user->update($data);
 
         return response()->json(['message' => 'Profile updated successfully', 'user' => $user]);
     }
 
+    // Method to update user password
     public function updatePassword(Request $request)
     {
+        // Validate password data
         $request->validate([
-            'current_password' => 'required|current_password', // Valida que la actual sea correcta
-            'password' => ['required', 'confirmed', Password::defaults()],
+            // Current password is correct?
+            'current_password' => 'required|current_password',
+            'password' => ['required', 'confirmed', PasswordRules::defaults()],
         ]);
 
+        // The user is got by the session
         $user = Auth::user();
+        // Update the password with the new one
         $user->update([
             'password' => Hash::make($request->password)
         ]);
 
         return response()->json(['message' => 'Password changed successfully']);
     }
-}
 
+    // Method to start user password recover
+    public function sendResetLinkEmail(Request $request)
+    {
+        // Validate email to send the reset link
+        $request->validate(['email' => 'required|email']);
+        // Send the reset link to the email provided
+        $status = PasswordFacade::sendResetLink($request->only('email'));
+        // If the reset link was sent successfully, return a success message
+        if ($status === PasswordFacade::RESET_LINK_SENT) {
+            return response()->json(['message' => 'Reset link sent to your email.']);
+        }
+        // If not, return an error message
+        return response()->json(['message' => 'Unable to send reset link.'], 400);
+    }
+
+    // Method to reset user password
+    public function resetPassword(Request $request)
+    {
+        // Validate the data to reset the password
+        $request->validate([
+            'token' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        // Reset the password using the provided token, email and new password
+        $status = PasswordFacade::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password)
+                ])->save();
+            }
+        );
+        // If the password was reset successfully, return a success message, otherwise return an error message
+        return $status === PasswordFacade::PASSWORD_RESET
+            ? response()->json(['message' => 'Password has been reset.'])
+            : response()->json(['message' => 'Invalid token or email.'], 400);
+    }
+}

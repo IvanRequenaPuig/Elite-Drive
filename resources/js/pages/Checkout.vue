@@ -1,10 +1,20 @@
+<!-- Sergio Libros - Programming ================================================================ -->
+<!-- Guillermo Soto - Style ===================================================================== -->
+
 <script setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCartStore } from '../stores/cartStore';
 import axios from 'axios';
+import { useToast } from '../composables/useToast';
 
+// Toast object
+const toast = useToast();
+
+// Pinia store
 const cartStore = useCartStore();
+
+// Router to redirect
 const router = useRouter();
 const isProcessing = ref(false);
 
@@ -23,11 +33,13 @@ const formatDate = (dateString) => {
 // Payment handling
 const handlePayment = async () => {
     isProcessing.value = true;
+    // Errors array
     const errors = [];
 
-    // Realizar reservas para cada ítem en el carrito
+    // Make a reservation for every item in cart
     for (const item of cartStore.cartItems) {
         try {
+            // Add reservation to database
             await axios.post('/reservations', {
                 vehicle_id: item.vehicle.id,
                 start_date: item.start,
@@ -36,54 +48,67 @@ const handlePayment = async () => {
             });
         } catch (error) {
             console.error(`Error booking ${item.vehicle.brand}:`, error);
+            // If error, push it into array
             errors.push(item.vehicle.model);
         }
     }
 
     isProcessing.value = false;
 
+    // If there are errors, show them in a toast
     if (errors.length > 0) {
-        alert(`Could not book: ${errors.join(', ')}. Please try again.`);
+        toast.error(`Could not book: ${errors.join(', ')}. Please try again.`, "Checkout Error");
     } else {
+        // If no errors, clear cart and show success message
         cartStore.clearCart();
-        alert('Reservation confirmed successfully! Thank you.');
-        router.push('/user/reservations');
+        toast.success('Reservation confirmed successfully! Thank you.', "Checkout");
+        // Redirect to reservation list profile section
+        router.push({ path: '/profile', hash: '#reservation-list' });
     }
 };
 </script>
 
+<style scoped>
+@import "../../css/admin_style.css";
+@import "../../css/checkout_style.css";
+</style>
+
 <template>
-    <div class="container py-5">
-        <h2 class="fw-bold mb-4">Checkout</h2>
+    <div class="container mt-5">
 
-        <div v-if="cartStore.count > 0" class="row g-5">
+        <h4 class="dashboard-title mb-4 p-3 shadow-sm">Checkout</h4>
 
-            <div class="col-lg-8">
-                <div class="card shadow-sm border-0 mb-3" v-for="item in cartStore.cartItems" :key="item.id">
+        <div class="row g-5">
+
+            <!-- PRODUCT ITEM ==================================================== -->
+
+            <div class="col-lg-8" v-if="cartStore.count > 0">
+                <div class="card panel-content shadow-sm mb-3" v-for="item in cartStore.cartItems" :key="item.id">
                     <div class="row g-0">
                         <div class="col-md-4">
-                            <img :src="`/images/cars/thumbnails/${item.vehicle.id}-thm.webp`"
-                                class="img-fluid rounded-start h-100" style="object-fit: cover; min-height: 150px;"
-                                alt="Car" @error="$event.target.src = '/images/placeholder.webp'">
+                            <img :src="`/images/cars/thumbnails/${item.vehicle.id}-thm.webp`" class="img-fluid h-100"
+                                style="object-fit: cover; min-height: 150px;" alt="Car"
+                                @error="$event.target.src = '/images/placeholder.webp'">
                         </div>
 
                         <div class="col-md-8">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h5 class="card-title fw-bold mb-0">{{ item.vehicle.brand }} {{ item.vehicle.model
+                                    <h5 class="card-title fw-bold mb-0 color-secondary">{{ item.vehicle.brand }} {{
+                                        item.vehicle.model
                                         }}</h5>
-                                    <span class="fs-5 fw-bold text-primary">{{
+                                    <span class="fs-5 fw-bold text-white">{{
                                         Number(item.price).toLocaleString('es-ES') }}€</span>
                                 </div>
 
-                                <div class="bg-light p-3 rounded border small mb-3">
+                                <div class="inner-panel-primary p-3 small mb-3">
                                     <div class="d-flex justify-content-between mb-1">
-                                        <span class="text-muted">Pick-up:</span>
-                                        <span class="fw-bold">{{ formatDate(item.start) }}</span>
+                                        <span>Pick-up:</span>
+                                        <span class="fw-bold text-white">{{ formatDate(item.start) }}</span>
                                     </div>
                                     <div class="d-flex justify-content-between">
-                                        <span class="text-muted">Drop-off:</span>
-                                        <span class="fw-bold">{{ formatDate(item.end) }}</span>
+                                        <span>Drop-off:</span>
+                                        <span class="fw-bold text-white">{{ formatDate(item.end) }}</span>
                                     </div>
                                 </div>
 
@@ -98,42 +123,77 @@ const handlePayment = async () => {
                     </div>
                 </div>
             </div>
-
-            <div class="col-lg-4">
-                <div class="card shadow border-0 bg-light sticky-top" style="top: 100px;">
-                    <div class="card-body p-4">
-                        <h4 class="fw-bold mb-4">Summary</h4>
-
-                        <div class="d-flex justify-content-between mb-2 small" v-for="item in cartStore.cartItems"
-                            :key="item.id">
-                            <span class="text-truncate pe-2" style="max-width: 200px;">{{ item.vehicle.brand }} {{
-                                item.vehicle.model }}</span>
-                            <span>{{ Number(item.price).toLocaleString('es-ES') }}€</span>
-                        </div>
-
-                        <hr>
-
-                        <div class="d-flex justify-content-between align-items-center mb-4">
-                            <span class="fs-5 fw-bold">Total</span>
-                            <span class="fs-3 fw-bold text-success">{{ Number(cartStore.total).toLocaleString('es-ES')
-                                }}€</span>
-                        </div>
-
-                        <button @click="handlePayment" class="btn btn-dark w-100 py-3 fw-bold shadow-sm"
-                            :disabled="isProcessing">
-                            <span v-if="isProcessing" class="spinner-border spinner-border-sm me-2"></span>
-                            {{ isProcessing ? 'Processing Payment...' : 'Confirm & Pay' }}
-                        </button>
-
-                        <div class="text-center mt-3">
-                            <small class="text-muted d-block"><i class="bi bi-lock-fill"></i> Secure SSL Payment</small>
-                            <small class="text-muted" style="font-size: 0.75rem;">By clicking, you agree to our
-                                Terms.</small>
+            <div class="col-lg-8" v-else>
+                <div class="card panel-content shadow-sm mb-3">
+                    <div class="row g-0">
+                        <div class="col p-5 text-center">
+                            THERE ARE NO VEHICLES IN CART
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- SUMARY ========================================================== -->
+
+            <div class="col-lg-4">
+                <div class="dashboard-title sticky-top" style="top: 100px;">
+                    <div class="card-body p-4">
+                        <h4 class="fw-bold mb-4">Summary</h4>
+
+                        <div class="d-flex justify-content-between mb-2 small" v-for="item in cartStore.cartItems"
+                            :key="item.id">
+                            <span class="pe-2" style="max-width: 200px;">{{ item.vehicle.brand }} {{
+                                item.vehicle.model }}</span>
+                            <span class="">{{ Number(item.price).toLocaleString('es-ES') }}€</span>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <span class="fs-5 fw-bold">Total:</span>
+                            <span class="fs-3 fw-bold text-white">{{ Number(cartStore.total).toLocaleString('es-ES')
+                            }}€</span>
+                        </div>
+
+                        <button v-if="cartStore.count > 0" @click="handlePayment" class="btn bg-primary-cta w-100 py-2"
+                            :disabled="isProcessing">
+                            <span v-if="isProcessing" class="me-2"></span>
+                            {{ isProcessing ? 'Processing Payment...' : 'Confirm & Pay' }}
+                        </button>
+
+                        <button v-else disabled="true" class="btn bg-dark-subtle w-100 py-2">
+                            <span>Cart is Empty</span>
+                        </button>
+
+                        <div class=" text-center mt-3">
+                            <small class="text-white d-block"><i class="bi bi-lock-fill"></i> Secure SSL
+                                Payment</small>
+                            <small class="text-white" style="font-size: 0.75rem;">By clicking, you agree to our
+                                Terms.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- DIVIDER ============================================================== -->
+
+        <section class="mt-5 mb-4">
+            <div class="container">
+                <div class="d-flex justify-content-center">
+                    <img :src="'/images/decorations/divider.png'" alt="Divider" class="w-50">
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM IMAGE ==================================================== -->
+
+        <section class="container-fluid px-0 mt-4 mb-5">
+            <div class="row g-0">
+                <div class="col-12 text-center">
+                    <img :src="'/images/checkout/landscape.jpg'" alt="Banner ad" class="img-bottom-banner shadow-sm">
+                </div>
+            </div>
+        </section>
     </div>
 </template>
