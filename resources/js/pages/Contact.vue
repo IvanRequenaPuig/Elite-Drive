@@ -40,23 +40,27 @@ const errors = reactive({
     ano: false
 })
 
-// --- IRL VALIDATIONS ---
 
-// Only text validation
+
+// --- NUEVAS FUNCIONES DE VALIDACIÓN EN TIEMPO REAL ---
+
+// Solo permite letras y espacios (incluye tildes y ñ)
 const filterTextOnly = (event) => {
     const value = event.target.value;
-    // Replace anything that not correspond
+    // La expresión regular reemplaza todo lo que NO sea letras o espacios
     form.nombre = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
 }
 
-// Only allow numbers
+// Solo permite números
 const filterNumberOnly = (field, event) => {
     const value = event.target.value;
-    // Replace anything that is not a number
+    // Reemplaza todo lo que NO sea un dígito (0-9)
     form[field] = value.replace(/\D/g, '');
 }
 
-// --- Company Schedule ---
+
+
+// --- negocio horario ---
 const updateBusinessStatus = () => {
     const espanaTime = new Date().toLocaleString("en-US", { timeZone: "Europe/Madrid" })
     const now = new Date(espanaTime)
@@ -231,61 +235,63 @@ const handleSubmit = async () => {
             </div>
         </div>
     </section>
+<section class="container py-5 my-4">
+    <div class="row g-5">
+        <div class="col-lg-6">
+            <h2 class="mb-4 section-title">Send Us a <span class="text-highlight">Message</span></h2>
+            
+            <form @submit.prevent="handleSubmit">
+                <div class="row g-3">
+                    <div class="col-md-6">
+    <label for="nombre" class="form-label">Full name *</label>
+    <input type="text" 
+           :value="form.nombre" 
+           @input="filterTextOnly" 
+           class="form-control"
+           :class="{ 'is-invalid': errors.nombre }" 
+           placeholder="Your name" 
+           required>
+</div>
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" v-model="form.email" class="form-control" :class="{'is-invalid': errors.email}" placeholder="you@email.com" required>
+                    </div>
+                   <div class="col-md-6">
+    <label for="telefono" class="form-label">Phone</label>
+    <input type="tel" 
+           :value="form.telefono" 
+           @input="filterNumberOnly('telefono', $event)"
+           class="form-control"
+           placeholder="+34 600 000 000"
+           maxlength="15"> 
+</div>
+                    <div class="col-md-6">
+                        <label for="interes" class="form-label">Interested in</label>
+                        <select v-model="form.interes" class="form-select">
+                            <option value="info">General information</option>
+                            <option value="compra">Buying a vehicle</option>
+                            <option value="venta">Selling a vehicle (Valuation)</option>
+                        </select>
+                    </div>
 
-
-    <section class="container py-5 my-4">
-        <div class="row g-5">
-            <div class="col-lg-6">
-                <h2 class="mb-4 section-title">Send Us a <span class="text-highlight">Message</span></h2>
-
-                <form @submit.prevent="handleSubmit">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="nombre" class="form-label">Full name *</label>
-                            <input type="text" :value="form.nombre" @input="filterTextOnly" class="form-control"
-                                :class="{ 'is-invalid': errors.nombre }" placeholder="Your name" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="email" class="form-label">Email *</label>
-                            <input type="email" v-model="form.email" class="form-control"
-                                :class="{ 'is-invalid': errors.email }" placeholder="you@email.com" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="telefono" class="form-label">Phone</label>
-                            <input type="tel" :value="form.telefono" @input="filterNumberOnly('telefono', $event)"
-                                class="form-control" placeholder="+34 600 000 000" maxlength="15">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="interes" class="form-label">Interested in</label>
-                            <select v-model="form.interes" class="form-select">
-                                <option value="info">General information</option>
-                                <option value="compra">Buying a vehicle</option>
-                                <option value="venta">Selling a vehicle (Valuation)</option>
-                            </select>
-                        </div>
-
-
-                        <div v-if="form.interes === 'venta'" class="col-12">
-                            <div class="p-3 rounded border border-warning-subtle bg-dark-subtle mt-2">
-                                <h6 class="text-highlight mb-3"><i class="bi bi-car-front-fill me-2"></i>Details for
-                                    Valuation</h6>
-                                <div class="row g-2">
-                                    <div class="col-md-4">
-                                        <input type="text" v-model="form.marca_tasacion" class="form-control"
-                                            :class="{ 'is-invalid': errors.marca }" placeholder="Make (e.g., BMW)">
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <input type="text" v-model="form.modelo_tasacion" class="form-control"
-                                            :class="{ 'is-invalid': errors.modelo }" placeholder="Model (e.g., M4)">
-                                    </div>
-
-                                    <div class="col-md-4">
-                                        <input type="text" :value="form.ano_tasacion"
-                                            @input="filterNumberOnly('ano_tasacion', $event)" class="form-control"
-                                            :class="{ 'is-invalid': errors.ano }" placeholder="Year" maxlength="4">
-                                    </div>
+                    <div v-if="form.interes === 'venta'" class="col-12">
+                        <div class="p-3 rounded border border-warning-subtle bg-dark-subtle mt-2">
+                            <h6 class="text-highlight mb-3"><i class="bi bi-car-front-fill me-2"></i>Details for Valuation</h6>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <input type="text" v-model="form.marca_tasacion" class="form-control" placeholder="Make (e.g., BMW)">
                                 </div>
+                                <div class="col-md-4">
+                                    <input type="text" v-model="form.modelo_tasacion" class="form-control" placeholder="Model (e.g., M4)">
+                                </div>
+                              <div class="col-md-4">
+    <input type="text" 
+           :value="form.ano_tasacion" 
+           @input="filterNumberOnly('ano_tasacion', $event)"
+           class="form-control"
+           placeholder="Year"
+           maxlength="4">
+</div>
                             </div>
                         </div>
 
